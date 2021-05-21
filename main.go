@@ -84,11 +84,11 @@ func (c *Controller) syncToStdout(key string) error {
 
 	if !exists {
 		// Below we will warm up our cache with a Pod, so that we will see a delete for one pod
-		fmt.Printf("Pod %s does not exist anymore\n", key)
+		klog.V(4).Infof("Pod %s does not exist anymore\n", key)
 	} else {
 		// Note that you also have to check the uid if you have a local controlled resource, which
 		// is dependent on the actual instance, to detect that a Pod was recreated with the same name
-		fmt.Printf("Sync/Add/Update for Pod %s\n", obj.(*v1.Pod).GetName())
+		klog.V(4).Infof("Sync/Add/Update for Pod %s\n", obj.(*v1.Pod).GetName())
 	}
 	return nil
 }
@@ -155,8 +155,12 @@ func main() {
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
+
+	host := flag.String("host", "", "Host must be a host string, a host:port pair, or a URL to the base of the apiserver")
+	qps := flag.Float64("qps", 0, "QPS indicates the maximum QPS to the master from this client, 0 implies DefaultQPS: 5")
+	burst := flag.Int("burst", 0, "Maximum burst for throttle, 0 implies DefaultBurst: 10")
+
 	klog.InitFlags(nil)
-	flag.Set("v", "7") // log to a file
 	flag.Parse()
 
 	// use the current context in kubeconfig
@@ -164,6 +168,14 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	// override host
+	if *host != "" {
+		config.Host = *host
+	}
+
+	config.QPS = float32(*qps)
+	config.Burst = *burst
 
 	// create the clientset
 	// we need a context since this client spawns a goroutine
